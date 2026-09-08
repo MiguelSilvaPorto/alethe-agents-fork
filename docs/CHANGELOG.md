@@ -14,18 +14,17 @@ Notable user-facing changes to **Alethe** are documented here. The format is bas
 
 - **Direct project transfers are roughly thirty times faster.** The peer-to-peer link sent one 1.2 KB piece and waited for its acknowledgement before sending the next, which made speed depend on distance rather than bandwidth: about 30 KB/s over a typical internet connection, so a 100 MB project took the better part of an hour. Up to 32 pieces are now in flight at once, keeping the link busy while acknowledgements come back.
 
+### Fixed
+
+- **The search field in a dropdown opened from a dialog can be clicked again.** Picking a model among hundreds means typing to filter, and the field would not take focus — clicking it did nothing while the options in the same menu still worked. The menu was being rendered outside the dialog, which pulls focus back the instant anything outside it is focused; it now renders inside.
 
 - **Sharing a project works even when a direct connection is impossible.** It went out over the peer-to-peer path or not at all, so behind the kind of network that defeats hole punching — mobile and carrier-grade NAT, which the code already acknowledged defeats WebRTC and Tailscale the same way — sharing a project could not happen. Not slowly: never. Transfers now fall back to the relay the way chat always has, cut into pieces small enough for it and sealed for the recipient. The relay path is slower and says so, rather than looking the same as a direct transfer.
 
-
 - **An agent no longer starts with `No conversation found with session ID`.** Alethe mints Claude's session id itself and saved it as soon as it was requested — from the intent to create a session, not from evidence that one existed. A first launch that stopped at the trust prompt wrote no conversation file, and the next launch then tried to resume an id the CLI had never heard of. The stored id is now checked against the agent's own storage before being used, and dropped in favour of a fresh session when the conversation is not there. An agent whose storage cannot be read is left alone rather than having a valid id discarded.
-
 
 - **Scrolling inside a full-screen agent no longer types into it.** With Claude Code open, turning the wheel sent arrow keys to the app instead of scrolling — the terminal's default when a full-screen app leaves no scrollback behind — so a scroll gesture quietly moved through the prompt history. The wheel is now forwarded only to an app that actually asked for mouse events (OpenCode does; Claude Code does not), and otherwise does nothing. `Shift`+wheel still forces the host's own scrollback.
 
-
 - **The merge panel no longer crashes when its list goes from empty to having items.** A hook was declared after the early return for the empty case, so it was skipped on those renders — and the first render with items then had one more hook than the previous one, which React refuses outright. Going from empty to non-empty is the ordinary case for that panel, not an edge one.
-
 
 - **The app failed to load at all on builds where `invoke` is a read-only property.** The correlation wrapper assigned to it directly, which throws in strict mode, and because it runs at module scope the whole UI died with a blank window — caused by a feature whose only job is to label log lines. It now installs defensively and, when it cannot, turns correlation off and says so once. Diagnostics that can break the thing they observe are worse than no diagnostics.
 
