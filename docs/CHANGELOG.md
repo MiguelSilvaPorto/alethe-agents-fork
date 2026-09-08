@@ -16,6 +16,8 @@ Notable user-facing changes to **Alethe** are documented here. The format is bas
 
 ### Fixed
 
+- **Pointing at a merge warning no longer looks like selecting the agent.** The row's hover highlight was triggered by the whole row, the warning triangle included, so hovering the triangle lit up the agent's name and status beside it — two separate controls, one of them highlighting the other.
+
 - **Ctrl+V pastes again in OpenCode, Codex and Antigravity.** These agents read the clipboard themselves so they can show their own compact placeholder for a pasted image, and the keystroke was being handed to them for *every* paste — so pasting text did nothing at all, while the right-click menu still worked. The keystroke is now forwarded only when the clipboard actually holds an image.
 
 - **The memory chart's marker is round again.** The chart stretches to fill a wide, short box, which squashed the point into a flat dash.

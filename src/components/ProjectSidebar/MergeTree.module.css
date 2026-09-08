@@ -48,7 +48,12 @@
   border-radius: var(--radius-sm);
   transition: background-color 100ms ease;
 }
-.node:hover .nodeContent {
+/* Driven by the button that actually selects, not by the row.
+   `.node:hover` covers the whole row — the warning triangle included — so pointing at the triangle
+   lit up the agent's name and status as though the row were being selected. Two separate controls
+   sat side by side and one of them highlighted the other. */
+.nodeMain:hover .nodeContent,
+.nodeMain:focus-visible .nodeContent {
   background: var(--panel-hover);
 }
 
