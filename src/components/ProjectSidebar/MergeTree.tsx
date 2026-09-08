@@ -99,7 +99,14 @@ export function MergeTree({
                 }`}
                 title={t(status.key)}
                 aria-label={t(status.key)}
-                onClick={() => setOpenWarning({ item, gate: warning, status })}
+                // Clicking the same triangle again closes the popup. The X stays: it is the
+                // obvious way out once the popup has your attention, and reaching back to the
+                // small triangle behind it is not.
+                onClick={() =>
+                  setOpenWarning((current) =>
+                    current?.item.id === item.id ? null : { item, gate: warning, status },
+                  )
+                }
               >
                 <AlertTriangle size={13} />
               </button>

@@ -81,3 +81,35 @@ export function getWheelScrollLines(event: WheelLike, lineHeight: number): numbe
   const lines = Math.ceil(Math.abs(event.deltaY) / safeLineHeight)
   return Math.sign(event.deltaY) * Math.max(1, lines)
 }
+
+/**
+ * What a terminal has to send for "new line, do not submit".
+ *
+ * A terminal cannot tell an application that Shift was held: Enter is a carriage return either way,
+ * and the agent TUIs read that as submit. `ESC` followed by the return is the sequence they accept
+ * as a soft newline — the same thing Alt+Enter produces, and what Claude Code's own
+ * `/terminal-setup` binds Shift+Enter to in other terminals.
+ */
+export const SOFT_NEWLINE_SEQUENCE = '\x1b\r'
+
+/**
+ * Whether this keystroke means "new line inside the prompt" rather than "send it".
+ *
+ * Restricted to the agent CLIs on purpose. In a shell, Enter submits and there is no multi-line
+ * prompt to continue, so translating the keystroke there would replace a working submit with a
+ * sequence most shells do nothing with.
+ */
+export function isSoftNewline(
+  event: {
+    key: string
+    shiftKey: boolean
+    ctrlKey: boolean
+    metaKey: boolean
+    altKey: boolean
+  },
+  command: string | null | undefined,
+): boolean {
+  if (event.key !== 'Enter') return false
+  if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false
+  return Boolean(command) && command !== 'shell'
+}

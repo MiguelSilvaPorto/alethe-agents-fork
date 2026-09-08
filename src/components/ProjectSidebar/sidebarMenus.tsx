@@ -16,6 +16,7 @@ import {
   Upload,
 } from 'lucide-react'
 
+import { agentLaunchEnv } from '../../lib/agentConfigIsolation'
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { syncDeleteProjectConversation } from '../../lib/api/syncChat'
 import { syncDeleteProjectAccess } from '../../lib/api/syncSecurity'
@@ -443,7 +444,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
         command: agentCliCommand(activeTab.type),
         cwd: activeTab.cwd || undefined,
         extraArgs: launch.args,
-        env: runtime.env,
+        env: await agentLaunchEnv(agentCliCommand(activeTab.type), runtime.env),
       })
       window.dispatchEvent(
         new CustomEvent('alethe:terminal-resize-request', { detail: { ptyId: activeTab.ptyId } }),

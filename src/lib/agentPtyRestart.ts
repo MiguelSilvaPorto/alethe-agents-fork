@@ -20,6 +20,7 @@
  * vez de spawnar, que nunca dispara a descoberta.
  */
 import { useTerminalsStore } from '../stores/terminalsStore'
+import { agentLaunchEnv } from './agentConfigIsolation'
 import { preparePtyRuntimeLaunch } from './agentRuntimeAdapter'
 import { type AsyncResumableAgent, watchAndPersistDiscoveredSession } from './agentSessionDiscovery'
 import { withFallback } from './resilience'
@@ -106,7 +107,10 @@ export async function restartAgentPty(opts: RestartAgentPtyOpts): Promise<Restar
     command: agentCliCommand(agent),
     cwd: cwd || undefined,
     extraArgs: launch.args,
-    env: preparedRuntime.env,
+    // Through the same helper the spawn path uses. Passing `preparedRuntime.env` straight through,
+    // which is what this did, dropped the agent's isolated configuration directory: a terminal
+    // created isolated returned to the machine's global configuration the moment it was restarted.
+    env: await agentLaunchEnv(agentCliCommand(agent), preparedRuntime.env),
   })
 
   if (launch.sessionId) onSessionId?.(launch.sessionId)

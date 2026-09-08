@@ -16,6 +16,12 @@ Notable user-facing changes to **Alethe** are documented here. The format is bas
 
 ### Fixed
 
+- **An agent no longer loses its isolated configuration when the terminal is restarted.** Creating a terminal pointed OpenCode at the configuration directory Alethe manages; restarting one did not, so the agent silently went back to the machine's global configuration — reading a different file from the one the extensions manager edits. Five of the six places that launch an agent had the same gap; all of them now go through one helper.
+
+- **Shift+Enter breaks the line instead of sending the message.** A terminal cannot tell an application that Shift was held — Enter is a carriage return either way — so the keystroke reached the agent as a plain submit. It is now translated to the sequence these agents accept as a soft newline. A plain shell is untouched.
+
+- **Clicking a merge warning again closes it.** The X is still there; the triangle just no longer only opens.
+
 - **Pointing at a merge warning no longer looks like selecting the agent.** The row's hover highlight was triggered by the whole row, the warning triangle included, so hovering the triangle lit up the agent's name and status beside it — two separate controls, one of them highlighting the other.
 
 - **Ctrl+V pastes again in OpenCode, Codex and Antigravity.** These agents read the clipboard themselves so they can show their own compact placeholder for a pasted image, and the keystroke was being handed to them for *every* paste — so pasting text did nothing at all, while the right-click menu still worked. The keystroke is now forwarded only when the clipboard actually holds an image.

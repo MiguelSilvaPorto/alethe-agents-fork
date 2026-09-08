@@ -10,9 +10,11 @@ import { useEffect, useRef } from 'react'
 import { recordAgentActivityInput } from '../../lib/activityTracker'
 import { cliPathMatchesAgent } from '../../lib/agentCliPath'
 import { AgentCompletionMonitor } from '../../lib/agentCompletionMonitor'
+import { agentLaunchEnv } from '../../lib/agentConfigIsolation'
 import { deliverOpenCodePrompt } from '../../lib/agentPromptDelivery'
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { watchAndPersistDiscoveredSession } from '../../lib/agentSessionDiscovery'
+import { resolveResumeId } from '../../lib/api/sessionPresence'
 import { isTauriEnv } from '../../lib/api/transport'
 import { getLocale, translate } from '../../lib/i18n'
 import { isLinux, isWindows } from '../../lib/platform'
@@ -24,7 +26,6 @@ import {
   isSessionClaimed,
   registerSessionClaim,
 } from '../../lib/sessionDiscovery'
-import { resolveResumeId } from '../../lib/api/sessionPresence'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import {
   peekSession,
@@ -34,7 +35,6 @@ import {
 } from '../../lib/sessionResume'
 import { acquireSpawnSlot, releaseSpawnSlot } from '../../lib/spawnQueue'
 import {
-  agentConfigRoot,
   aiMemoryCodexConfigWrite,
   aiMemoryDetect,
   aiMemoryMcpConfigPath,
@@ -43,6 +43,7 @@ import {
   attachPtySnapshot,
   chunksAfterPtySnapshot,
   clearPtyScrollback,
+  type ClipboardPayload,
   findCliLauncher,
   getPtySize,
   killPty,
@@ -55,7 +56,6 @@ import {
   playwrightMcpConfigPath,
   ptyExists,
   type PtyResyncReason,
-  type ClipboardPayload,
   readClipboardPayload,
   resizePty,
   setPtyVisible,
@@ -78,11 +78,13 @@ import { useProjectsStore } from '../../stores/projectsStore'
 import { useTerminalsStore } from '../../stores/terminalsStore'
 import { useUiStore } from '../../stores/uiStore'
 import {
+  decideWheelAction,
   formatDroppedPaths,
   getTerminalScrollbackRows,
   getWheelScrollLines,
+  isSoftNewline,
   normalizePastedText,
-  decideWheelAction,
+  SOFT_NEWLINE_SEQUENCE,
 } from './terminalInput'
 import {
   type DetectedTerminalLink,
@@ -929,6 +931,22 @@ export function useXtermSession(params: {
 
     terminal.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown') return true
+
+      // Before the modifier guard below, which only lets Ctrl combinations through: Shift+Enter has
+      // no Ctrl, so it was falling straight past every handler and reaching the agent as a plain
+      // carriage return — indistinguishable from Enter, which is why it submitted instead of
+      // breaking the line.
+      if (!readOnly && isSoftNewline(event, command)) {
+        event.preventDefault()
+        const id = ptyIdRef.current
+        if (id) {
+          inputWriteChain = inputWriteChain.then(() =>
+            writePtyChunked(id, SOFT_NEWLINE_SEQUENCE, false),
+          )
+        }
+        return false
+      }
+
       const ctrl = event.ctrlKey || event.metaKey
       if (!ctrl || event.altKey) return true
 
@@ -2110,21 +2128,8 @@ export function useXtermSession(params: {
           return
         }
         setBootPhase('spawning')
-        // OpenCode reads its configuration from `XDG_CONFIG_HOME`, so pointing that at Alethe's own
-        // directory gives the agent a clean environment Alethe manages instead of whatever the
-        // machine happens to have. Only configuration moves: sessions, credentials and snapshots
-        // live in OpenCode's separate data directory, so history and login are unaffected.
-        let spawnEnv = preparedRuntime.env
-        if (command === 'opencode') {
-          const configRoot = await agentConfigRoot().catch((error) => {
-            // Falling back to the ambient config is better than refusing to start, but it has to be
-            // visible: the agent then reads a different file from the one the MCP manager edits.
-            console.error('[pty-launch] could not resolve the agent config root:', error)
-            return null
-          })
-          if (configRoot) spawnEnv = { ...(spawnEnv ?? {}), XDG_CONFIG_HOME: configRoot }
-          if (disposed) return
-        }
+        const spawnEnv = await agentLaunchEnv(command, preparedRuntime.env)
+        if (disposed) return
 
         let response: { id: string }
         try {

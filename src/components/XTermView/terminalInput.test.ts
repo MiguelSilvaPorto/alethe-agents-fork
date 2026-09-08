@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  decideWheelAction,
   formatDroppedPaths,
   getTerminalScrollbackRows,
   getWheelScrollLines,
+  isSoftNewline,
   normalizePastedText,
-  decideWheelAction,
+  SOFT_NEWLINE_SEQUENCE,
 } from './terminalInput'
 
 describe('normalizePastedText', () => {
@@ -36,6 +38,46 @@ describe('getTerminalScrollbackRows', () => {
     expect(getTerminalScrollbackRows({ agent: true, memoryBudgetMb: 1536 })).toBe(6_000)
     expect(getTerminalScrollbackRows({ agent: false, memoryBudgetMb: 1536 })).toBe(3_000)
     expect(getTerminalScrollbackRows({ agent: true, memoryBudgetMb: 4096 })).toBe(10_000)
+  })
+})
+
+describe('isSoftNewline', () => {
+  const press = (over: Partial<Parameters<typeof isSoftNewline>[0]> = {}) => ({
+    key: 'Enter',
+    shiftKey: true,
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    ...over,
+  })
+
+  it('treats Shift+Enter in an agent as a new line', () => {
+    // A terminal cannot tell the application that Shift was held — Enter is a carriage return
+    // either way — so the agent read it as submit. The translation has to happen here.
+    expect(isSoftNewline(press(), 'opencode')).toBe(true)
+    expect(isSoftNewline(press(), 'claude')).toBe(true)
+  })
+
+  it('leaves a plain Enter alone', () => {
+    expect(isSoftNewline(press({ shiftKey: false }), 'claude')).toBe(false)
+  })
+
+  it('leaves other modifiers alone', () => {
+    // Ctrl+Enter and Alt+Enter already mean things to these apps; only Shift is being translated.
+    expect(isSoftNewline(press({ ctrlKey: true }), 'claude')).toBe(false)
+    expect(isSoftNewline(press({ altKey: true }), 'claude')).toBe(false)
+    expect(isSoftNewline(press({ metaKey: true }), 'claude')).toBe(false)
+  })
+
+  it('does not touch a plain shell', () => {
+    // There is no multi-line prompt to continue there, so translating would replace a working
+    // submit with a sequence most shells do nothing with.
+    expect(isSoftNewline(press(), 'shell')).toBe(false)
+    expect(isSoftNewline(press(), undefined)).toBe(false)
+  })
+
+  it('sends escape then return, which is what the agents accept', () => {
+    expect(SOFT_NEWLINE_SEQUENCE).toBe('\x1b\r')
   })
 })
 

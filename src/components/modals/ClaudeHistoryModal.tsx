@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { agentLaunchEnv } from '../../lib/agentConfigIsolation'
 import { intlLocale, type Locale, type TFunction, useT } from '../../lib/i18n'
 import { type ClaudeSessionMeta, listClaudeSessions, restartPty } from '../../lib/tauri'
 import { agentCliCommand, type AgentType } from '../../lib/types'
@@ -94,6 +95,7 @@ export function ClaudeHistoryModal({
         cols: 80,
         rows: 24,
         command: agentCliCommand(agentType),
+        env: await agentLaunchEnv(agentCliCommand(agentType)),
         cwd,
         extraArgs: newExtraArgs,
       })

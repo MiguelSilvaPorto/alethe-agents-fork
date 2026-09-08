@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useMemo, useState } from 'react'
 
+import { agentLaunchEnv } from '../../lib/agentConfigIsolation'
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { useT } from '../../lib/i18n'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
@@ -140,7 +141,7 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
         command: agentCliCommand(activeTab.type),
         cwd: activeTab.cwd || undefined,
         extraArgs: launch.args,
-        env: preparedRuntime.env,
+        env: await agentLaunchEnv(agentCliCommand(activeTab.type), preparedRuntime.env),
       })
       window.dispatchEvent(
         new CustomEvent('alethe:terminal-resize-request', { detail: { ptyId: activeTab.ptyId } }),

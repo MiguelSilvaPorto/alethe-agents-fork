@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { agentLaunchEnv } from '../../lib/agentConfigIsolation'
 import { intlLocale, type Locale, type TFunction, useT } from '../../lib/i18n'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import {
@@ -176,6 +177,7 @@ export function RecentChatsModal() {
         cols: 80,
         rows: 24,
         command: agentCliCommand(agent),
+        env: await agentLaunchEnv(agentCliCommand(agent)),
         cwd: tab.cwd || cwd || undefined,
         extraArgs: launch.args,
       })
