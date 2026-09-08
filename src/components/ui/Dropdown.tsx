@@ -91,6 +91,21 @@ export function Dropdown({
     if (restoreFocus) window.requestAnimationFrame(() => triggerRef.current?.focus())
   }
 
+  /**
+   * Where the menu is mounted.
+   *
+   * `document.body` everywhere except inside a modal. A modal is a Radix `Dialog.Content`, which
+   * traps focus: it listens for focus landing outside itself and pulls it straight back. A menu
+   * portalled to the body is outside, so clicking its search field focused it and lost it again in
+   * the same tick — the field looked dead while the options, which act on pointer-down, kept
+   * working. Mounting inside the dialog puts the menu in the focus scope and the field behaves.
+   *
+   * Read on every open rather than once: the same Dropdown component is used both inside modals and
+   * out, and a modal can open around it after mount.
+   */
+  const menuHost = (): HTMLElement =>
+    triggerRef.current?.closest<HTMLElement>('[data-alethe-modal-content]') ?? document.body
+
   useLayoutEffect(() => {
     if (!open) return
     const updatePosition = (event?: Event) => {
@@ -111,7 +126,17 @@ export function Dropdown({
       const maxHeight = Math.max(96, Math.min(280, opensBelow ? spaceBelow : spaceAbove))
       const top = opensBelow ? rect.bottom + 5 : rect.top - maxHeight - 5
       const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))
-      setPosition({ left, top: Math.max(8, top), width, maxHeight })
+      // The modal is `transform`ed, and a transformed ancestor is what `position: fixed` resolves
+      // against — so inside one, viewport coordinates have to be rebased onto the dialog or the
+      // menu lands half a screen away. Outside a modal the offset is zero and nothing changes.
+      const host = menuHost()
+      const offset = host === document.body ? { left: 0, top: 0 } : host.getBoundingClientRect()
+      setPosition({
+        left: left - offset.left,
+        top: Math.max(8, top) - offset.top,
+        width,
+        maxHeight,
+      })
     }
     updatePosition()
     window.addEventListener('resize', updatePosition)
@@ -297,7 +322,7 @@ export function Dropdown({
                 ) : null}
               </div>
             </div>,
-            document.body,
+            menuHost(),
           )
         : null}
     </div>
