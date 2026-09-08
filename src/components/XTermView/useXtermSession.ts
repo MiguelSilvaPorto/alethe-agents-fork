@@ -55,6 +55,7 @@ import {
   playwrightMcpConfigPath,
   ptyExists,
   type PtyResyncReason,
+  type ClipboardPayload,
   readClipboardPayload,
   resizePty,
   setPtyVisible,
@@ -872,8 +873,7 @@ export function useXtermSession(params: {
       }
     }
 
-    const resolveClipboardPaste = async (): Promise<string> => {
-      const payload = await readClipboardPayload()
+    const clipboardPayloadToText = (payload: ClipboardPayload): string => {
       switch (payload.kind) {
         case 'text':
           return payload.text
@@ -885,6 +885,9 @@ export function useXtermSession(params: {
           return ''
       }
     }
+
+    const resolveClipboardPaste = async (): Promise<string> =>
+      clipboardPayloadToText(await readClipboardPayload())
 
     const isOverThisPane = (pos: { x: number; y: number }) => {
       const dpr = window.devicePixelRatio || 1
@@ -988,15 +991,28 @@ export function useXtermSession(params: {
       }
 
       if (key === 'v' && !readOnly) {
-        if (!!command && NATIVE_CLIPBOARD_IMAGE_AGENTS.has(command)) {
-          return true
-        }
         event.preventDefault()
-        void resolveClipboardPaste()
-          .catch(() => navigator.clipboard?.readText() ?? '')
-          .then(pasteText)
-          .catch(() => {
-            terminal.focus()
+        // These agents read the OS clipboard themselves on Ctrl+V so they can show their own
+        // compact placeholder for a pasted image. Handing them the keystroke unconditionally, which
+        // is what this used to do, also handed them every *text* paste — and Ctrl+V then did
+        // nothing at all, while pasting from the right-click menu still worked because it takes a
+        // different path. The keystroke is only forwarded when the clipboard actually holds an
+        // image; anything else is pasted here, like in any other terminal.
+        const agentReadsClipboardImages = !!command && NATIVE_CLIPBOARD_IMAGE_AGENTS.has(command)
+        void readClipboardPayload()
+          .then((payload) => {
+            if (agentReadsClipboardImages && payload.kind === 'image') {
+              const id = ptyIdRef.current
+              // 0x16 is Ctrl+V on the wire; the agent takes it from here.
+              if (id) inputWriteChain = inputWriteChain.then(() => writePtyChunked(id, '', false))
+              return
+            }
+            pasteText(clipboardPayloadToText(payload))
+          })
+          .catch(async () => {
+            const text = await navigator.clipboard?.readText().catch(() => '')
+            if (text) pasteText(text)
+            else terminal.focus()
           })
         return false
       }

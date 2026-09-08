@@ -16,6 +16,12 @@ Notable user-facing changes to **Alethe** are documented here. The format is bas
 
 ### Fixed
 
+- **Ctrl+V pastes again in OpenCode, Codex and Antigravity.** These agents read the clipboard themselves so they can show their own compact placeholder for a pasted image, and the keystroke was being handed to them for *every* paste — so pasting text did nothing at all, while the right-click menu still worked. The keystroke is now forwarded only when the clipboard actually holds an image.
+
+- **The memory chart's marker is round again.** The chart stretches to fill a wide, short box, which squashed the point into a flat dash.
+
+- **A failure to read an agent's usage is no longer reported as "not configured".** The reason was discarded, so a call that failed and an agent that was never signed in produced the same confident claim about your setup.
+
 - **The search field in a dropdown opened from a dialog can be clicked again.** Picking a model among hundreds means typing to filter, and the field would not take focus — clicking it did nothing while the options in the same menu still worked. The menu was being rendered outside the dialog, which pulls focus back the instant anything outside it is focused; it now renders inside.
 
 - **Sharing a project works even when a direct connection is impossible.** It went out over the peer-to-peer path or not at all, so behind the kind of network that defeats hole punching — mobile and carrier-grade NAT, which the code already acknowledged defeats WebRTC and Tailscale the same way — sharing a project could not happen. Not slowly: never. Transfers now fall back to the relay the way chat always has, cut into pieces small enough for it and sealed for the recipient. The relay path is slower and says so, rather than looking the same as a direct transfer.
